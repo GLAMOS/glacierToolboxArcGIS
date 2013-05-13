@@ -1,13 +1,25 @@
-import arcpy, uuid, ConfigParser, datetime, getpass
+import arcpy, uuid, ConfigParser, datetime, getpass, os
 
-# TODO: Import-Helper should be implemented as a class regarding the class-wide
-# members such as config or date.
+DATABASE_MAPPING_FILE = "GlacierDatabaseMapping.cfg"
 
-def setImportDetails(row, config):
+class ImportHelper(object):
+
+    def __init__(self):
+        databaseMappingFile = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__),"..")), DATABASE_MAPPING_FILE)
+        self.__databaseMapping = ConfigParser.RawConfigParser()
+        self.__databaseMapping.read(databaseMappingFile)
+
+    def __del__(self):
+        pass
     
-    row.setValue(config.get('AllTable', 'PrimaryKey'), '{' + str(uuid.uuid1()) + '}')
-    
-    now = datetime.datetime.now()
+    def setImportDetails(self, row):
+        
+        row.setValue(self.__databaseMapping.get('AllTable', 'PrimaryKey'), '{' + str(uuid.uuid1()) + '}')
+        
+        now = datetime.datetime.now()
 
-    row.setValue(config.get('AllTable', 'Date_Of_Creation'), now)
-    row.setValue(config.get('AllTable', 'Created_By'), getpass.getuser())
+        row.setValue(self.__databaseMapping.get('AllTable', 'Date_Of_Creation'), now)
+        row.setValue(self.__databaseMapping.get('AllTable', 'Created_By'), getpass.getuser())
+
+    def getDatabaseMapping(self, group, key):
+        return self.__databaseMapping.get(group, key)
