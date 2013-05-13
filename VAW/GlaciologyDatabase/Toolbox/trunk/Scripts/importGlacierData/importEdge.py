@@ -1,4 +1,4 @@
-import arcpy, uuid, ConfigParser, os
+import arcpy, ConfigParser, os, importHelper
 
 DATABASE_MAPPING_FILE = "GlacierDatabaseMapping.cfg"
 
@@ -31,12 +31,14 @@ def doImport(targetLayer, sourceLayer, glacierId, measureDate, subName):
         targetLayerRow = targetLayerRows.newRow()
 
         targetLayerRow.setValue(shapeFieldNameTargetLayer, sourceLayerRow.getValue(shapeFieldNameSourceLayer))
-        targetLayerRow.setValue(config.get('Glacier', 'Edge_PrimaryKey'), '{' + str(uuid.uuid1()) + '}')
         targetLayerRow.setValue(config.get('Glacier', 'Edge_ForeignKey_Glacier'), glacierId)
         targetLayerRow.setValue(config.get('Glacier', 'Edge_MeasureDate'), measureDate)
 
         if len(subName) > 0:
             targetLayerRow.setValue(config.get('Glacier', 'Edge_SubName'), subName)
+
+        # Set all the general options of the import.
+        importHelper.setImportDetails(targetLayerRow, config)
         
         targetLayerRows.insertRow(targetLayerRow)
 
