@@ -22,45 +22,41 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
         arcpy.AddMessage(vertexList)
 
         point = arcpy.Point()
-        array = arcpy.Array()
+        mainPart = arcpy.Array()
+
+        allParts = arcpy.Array()
 
         for vertex in vertexList:
             point.X = vertex[0]
             point.Y = vertex[1]
             point.Z = vertex[2]
-            array.append(point)
-        # Add the first point of the array in to close off the polygon
-        #array.add(array.getObject(0))
+            mainPart.append(point)
+
+        allParts.append(mainPart)
 
         # Analyse possibly existing islands of the glacier
-        islandVertexList = []
-        islandVertexList = analyseIsland(dscGlacierEdgeLayer, glacierEdge)
+        islandVertexLists = []
+        islandVertexLists = analyseIsland(dscGlacierEdgeLayer, glacierEdge)
 
         i = 0
-        for islandVertex in islandVertexList:
+        for islandVertexList in islandVertexLists:
             i = i + 1
             arcpy.AddMessage("Found island: " + str(i))
 
-            arcpy.AddMessage(islandVertex)
+            arcpy.AddMessage(islandVertexList)
 
-            array.append(arcpy.Point(None, None, None))
+            islandPart = arcpy.Array()
 
-            for vertex in islandVertex:
-                array.append(arcpy.Point(vertex[0], vertex[1], vertex[2]))
+            for islandVertex in islandVertexList:
+                islandPart.append(arcpy.Point(islandVertex[0], islandVertex[1], islandVertex[2]))
 
-            if i == 1:
-                break
-
+            allParts.append(islandPart)
             
 
         # Create a Polygon object based on the array of points
-        polygon = arcpy.Polygon(array)
-
-        # Clear the array for future use
-        array.removeAll()
+        polygon = arcpy.Polygon(allParts)
 
         insertArea(glacierAreaLayer, polygon)
-        
 
     del glacierEdge
     del glacierEdges
