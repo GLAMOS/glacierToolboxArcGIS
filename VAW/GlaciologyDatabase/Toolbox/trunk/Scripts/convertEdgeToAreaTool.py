@@ -1,7 +1,7 @@
 import arcpy, convertGlacierData.convertEdgeToArea
 
 sourceLayer = arcpy.GetParameter(0)
-targetLayer = arcpy.GetParameter(0)
+targetLayer = arcpy.GetParameter(1)
 
 convertGlacierData.convertEdgeToArea.doConversion(sourceLayer, targetLayer)
 
