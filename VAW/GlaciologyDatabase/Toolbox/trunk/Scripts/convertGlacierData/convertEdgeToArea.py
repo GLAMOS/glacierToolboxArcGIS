@@ -1,6 +1,13 @@
-import arcpy
+import arcpy, os, sys
+
+lib_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__),"..")), "helper")
+sys.path.append(lib_path)
+arcpy.AddMessage(lib_path)
+import importHelper
 
 def doConversion(glacierEdgeLayer, glacierAreaLayer):
+
+    objImportHelper = importHelper.ImportHelper()
 
     # Loop through all the selected, or all, objects of the source layer
     glacierEdges = arcpy.SearchCursor(glacierEdgeLayer)
@@ -56,7 +63,9 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
         # Create a Polygon object based on the array of points
         polygon = arcpy.Polygon(allParts)
 
-        insertArea(glacierAreaLayer, polygon)
+        newGuid = insertArea(objImportHelper, glacierEdge, glacierAreaLayer, polygon)
+
+        setConversionInformation(dscGlacierEdgeLayer, glacierEdge, newGuid)
 
     del glacierEdge
     del glacierEdges
@@ -98,7 +107,7 @@ def analyseIsland(dscGlacierEdgeLayer, glacierEdge):
 
         
 
-def insertArea(glacierAreaLayer, polygon):
+def insertArea(objImportHelper, originalGlacierEdge, glacierAreaLayer, polygon):
 
     dscGlacierAreaLayer = arcpy.Describe(glacierAreaLayer)
     glacierAreaShapeFieldName = dscGlacierAreaLayer.ShapeFieldName
@@ -107,13 +116,26 @@ def insertArea(glacierAreaLayer, polygon):
 
         glacierAreas = arcpy.InsertCursor(glacierAreaLayer)
         newGlacierArea = glacierAreas.newRow()
-        
+
+        # Set the geometry
         newGlacierArea.setValue(glacierAreaShapeFieldName, polygon)
+
+        # Copy the original values
+        newGlacierArea.setValue("FK_Glacier", originalGlacierEdge.getValue("FK_Glacier"))
+        newGlacierArea.setValue("MeasureDate", originalGlacierEdge.getValue("MeasureDate"))
+        newGlacierArea.setValue("SubName", originalGlacierEdge.getValue("SubName"))
+
+        # Setting the general attributes.
+        newGuid = objImportHelper.setImportDetails(newGlacierArea)
         
         glacierAreas.insertRow(newGlacierArea)
 
         del newGlacierArea
         del glacierAreas
+
+        arcpy.AddMessage("Newly created glacier area:" + str(newGuid))
+
+        return newGuid
         
     except Exception as e:
         arcpy.AddMessage("Error during insert geometries:\n" + e.message)
@@ -121,3 +143,53 @@ def insertArea(glacierAreaLayer, polygon):
     finally:
         pass
 
+def setConversionInformation(dscGlacierEdgeLayer, glacierEdge, newGuid):
+    
+    fkGlacier = glacierEdge.getValue("FK_Glacier")
+    measureDate = glacierEdge.getValue("MeasureDate")
+
+    sqlStatement = "FK_Glacier = " + str(fkGlacier) + " AND MeasureDate = #" + str(measureDate) + "#"
+
+    originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
+
+    for originalGlacierEdge in originalGlacierEdges:
+        originalGlacierEdge.setValue("FK_Area", newGuid)
+
+        originalGlacierEdges.updateRow(originalGlacierEdge)
+        
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
