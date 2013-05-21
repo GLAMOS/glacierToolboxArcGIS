@@ -9,6 +9,9 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
 
     objDatabaseHelper = databaseHelper.DatabaseHelper()
 
+    edgeDataSourceType = objDatabaseHelper.getWorkspaceType(glacierEdgeLayer)
+    areaDataSourceType = objDatabaseHelper.getWorkspaceType(glacierAreaLayer)
+
     # Loop through all the selected, or all, objects of the source layer
     glacierEdges = arcpy.SearchCursor(glacierEdgeLayer)
 
@@ -43,7 +46,7 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
 
         # Analyse possibly existing islands of the glacier
         islandVertexLists = []
-        islandVertexLists = analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge)
+        islandVertexLists = analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, glacierEdge)
 
         i = 0
         for islandVertexList in islandVertexLists:
@@ -65,12 +68,12 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
 
         newGuid = insertArea(objDatabaseHelper, glacierEdge, glacierAreaLayer, polygon)
 
-        setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge, newGuid)
+        setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, glacierEdge, newGuid)
 
     del glacierEdge
     del glacierEdges
 
-def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge):
+def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, glacierEdge):
     arcpy.AddMessage("Datasource: " + dscGlacierEdgeLayer.catalogPath)
     glacierEdgeShapeFieldName = dscGlacierEdgeLayer.ShapeFieldName
 
@@ -82,12 +85,13 @@ def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge):
     measureDateFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
     measureDate = glacierEdge.getValue(measureDateFieldName)
 
-    # Construction of the SQL statement and setup of the search cursor to retrieve all the island edges.
-    # SQL for PGDB
-    #sqlStatement = "{0} <> {1} AND {2} = {3} AND {4} = #{5}#".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
-
-    # SQL for FGDB
-    sqlStatement = "{0} <> '{1}' AND {2} = {3} AND {4} = date '{5}'".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    if edgeDataSourceType == databaseHelper.DATABASE_TYPE_PERSONALGEODATABASE:
+        sqlStatement = "{0} <> {1} AND {2} = {3} AND {4} = #{5}#".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    elif edgeDataSourceType == databaseHelper.DATABASE_TYPE_FILEGEODATABASE:
+        sqlStatement = "{0} <> '{1}' AND {2} = {3} AND {4} = date '{5}'".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    else:
+        raise Exception("Datasource '{0}' not handled. No data processing!".format(edgeDataSourceType))
+    # Get the search cursor based on the given where-clause.
     relatedGlacierEdges = arcpy.SearchCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
     # List of all individual island geometries.
@@ -111,8 +115,6 @@ def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge):
     arcpy.AddMessage("End analysing island geometries")
 
     return islandVertexList
-
-        
 
 def insertArea(objDatabaseHelper, originalGlacierEdge, glacierAreaLayer, polygon):
 
@@ -156,19 +158,20 @@ def insertArea(objDatabaseHelper, originalGlacierEdge, glacierAreaLayer, polygon
     finally:
         pass
 
-def setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge, newGuid):
+def setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, glacierEdge, newGuid):
 
     fkGlacierFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Glacier")
     fkGlacier = glacierEdge.getValue(fkGlacierFieldName)
     measureDateFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
     measureDate = glacierEdge.getValue(measureDateFieldName)
 
-    # SQL for PGDB
-    #sqlStatement = "{0} = {1} AND {2} = #{3}#".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
-
-    # SQL for FGDB
-    sqlStatement = "{0} = {1} AND {2} = date '{3}'".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
-
+    if edgeDataSourceType == databaseHelper.DATABASE_TYPE_PERSONALGEODATABASE:
+        sqlStatement = "{0} = {1} AND {2} = #{3}#".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    elif edgeDataSourceType == databaseHelper.DATABASE_TYPE_FILEGEODATABASE:
+        sqlStatement = "{0} = {1} AND {2} = date '{3}'".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    else:
+        raise Exception("Datasource '{0}' not handled. No data processing!".format(edgeDataSourceType))
+    # Get the update cursor based on the given where-clause.
     originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
     fkAreaFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Area")
