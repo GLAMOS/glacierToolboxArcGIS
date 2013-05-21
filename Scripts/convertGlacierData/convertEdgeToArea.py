@@ -3,11 +3,11 @@ import arcpy, os, sys
 lib_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__),"..")), "helper")
 sys.path.append(lib_path)
 arcpy.AddMessage(lib_path)
-import importHelper
+import databaseHelper
 
 def doConversion(glacierEdgeLayer, glacierAreaLayer):
 
-    objImportHelper = importHelper.ImportHelper()
+    objDatabaseHelper = databaseHelper.DatabaseHelper()
 
     # Loop through all the selected, or all, objects of the source layer
     glacierEdges = arcpy.SearchCursor(glacierEdgeLayer)
@@ -43,7 +43,7 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
 
         # Analyse possibly existing islands of the glacier
         islandVertexLists = []
-        islandVertexLists = analyseIsland(dscGlacierEdgeLayer, glacierEdge)
+        islandVertexLists = analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge)
 
         i = 0
         for islandVertexList in islandVertexLists:
@@ -63,24 +63,27 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
         # Create a Polygon object based on the array of points
         polygon = arcpy.Polygon(allParts)
 
-        newGuid = insertArea(objImportHelper, glacierEdge, glacierAreaLayer, polygon)
+        newGuid = insertArea(objDatabaseHelper, glacierEdge, glacierAreaLayer, polygon)
 
-        setConversionInformation(dscGlacierEdgeLayer, glacierEdge, newGuid)
+        setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge, newGuid)
 
     del glacierEdge
     del glacierEdges
 
-def analyseIsland(dscGlacierEdgeLayer, glacierEdge):
+def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge):
     arcpy.AddMessage("Datasource: " + dscGlacierEdgeLayer.catalogPath)
     glacierEdgeShapeFieldName = dscGlacierEdgeLayer.ShapeFieldName
 
     # Reading the key values of the input edge record.
-    pk = glacierEdge.getValue("PK")
-    fkGlacier = glacierEdge.getValue("FK_Glacier")
-    measureDate = glacierEdge.getValue("MeasureDate")
+    pkFieldName = objDatabaseHelper.getDatabaseMapping("AllTable", "PrimaryKey")
+    pk = glacierEdge.getValue(pkFieldName)
+    fkGlacierFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Glacier")
+    fkGlacier = glacierEdge.getValue(fkGlacierFieldName)
+    measureDateFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
+    measureDate = glacierEdge.getValue(measureDateFieldName)
 
-    sqlStatement = "PK <> " + pk + " AND FK_Glacier = " + str(fkGlacier) + " AND MeasureDate = #" + str(measureDate) + "#"
-
+    # Construction of the SQL statement and setup of the search cursor to retrieve all the island edges.
+    sqlStatement = "{0} <> {1} AND {2} = {3} AND {4} = #{5}#".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
     relatedGlacierEdges = arcpy.SearchCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
     # List of all individual island geometries.
@@ -107,7 +110,7 @@ def analyseIsland(dscGlacierEdgeLayer, glacierEdge):
 
         
 
-def insertArea(objImportHelper, originalGlacierEdge, glacierAreaLayer, polygon):
+def insertArea(objDatabaseHelper, originalGlacierEdge, glacierAreaLayer, polygon):
 
     dscGlacierAreaLayer = arcpy.Describe(glacierAreaLayer)
     glacierAreaShapeFieldName = dscGlacierAreaLayer.ShapeFieldName
@@ -121,12 +124,18 @@ def insertArea(objImportHelper, originalGlacierEdge, glacierAreaLayer, polygon):
         newGlacierArea.setValue(glacierAreaShapeFieldName, polygon)
 
         # Copy the original values
-        newGlacierArea.setValue("FK_Glacier", originalGlacierEdge.getValue("FK_Glacier"))
-        newGlacierArea.setValue("MeasureDate", originalGlacierEdge.getValue("MeasureDate"))
-        newGlacierArea.setValue("SubName", originalGlacierEdge.getValue("SubName"))
+        fkGlacierFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_ForeignKey_Glacier")
+        fkGlacierFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Glacier")
+        newGlacierArea.setValue(fkGlacierFieldNameArea, originalGlacierEdge.getValue(fkGlacierFieldNameEdge))
+        measureDateFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_MeasureDate")
+        measureDateFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
+        newGlacierArea.setValue(measureDateFieldNameArea, originalGlacierEdge.getValue(measureDateFieldNameEdge))
+        subNameFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_SubName")
+        subNameFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_SubName")
+        newGlacierArea.setValue(subNameFieldNameArea, originalGlacierEdge.getValue(subNameFieldNameEdge))
 
         # Setting the general attributes.
-        newGuid = objImportHelper.setImportDetails(newGlacierArea)
+        newGuid = objDatabaseHelper.setImportDetails(newGlacierArea)
         
         glacierAreas.insertRow(newGlacierArea)
 
@@ -143,17 +152,22 @@ def insertArea(objImportHelper, originalGlacierEdge, glacierAreaLayer, polygon):
     finally:
         pass
 
-def setConversionInformation(dscGlacierEdgeLayer, glacierEdge, newGuid):
-    
-    fkGlacier = glacierEdge.getValue("FK_Glacier")
-    measureDate = glacierEdge.getValue("MeasureDate")
+def setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge, newGuid):
+
+    fkGlacierFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Glacier")
+    fkGlacier = glacierEdge.getValue(fkGlacierFieldName)
+    measureDateFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
+    measureDate = glacierEdge.getValue(measureDateFieldName)
 
     sqlStatement = "FK_Glacier = " + str(fkGlacier) + " AND MeasureDate = #" + str(measureDate) + "#"
+    sqlStatement2 = "{0} = {1} AND {2} = #{3}#".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
 
-    originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
+    originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement2)
+
+    fkAreaFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Area")
 
     for originalGlacierEdge in originalGlacierEdges:
-        originalGlacierEdge.setValue("FK_Area", newGuid)
+        originalGlacierEdge.setValue(fkAreaFieldName, newGuid)
 
         originalGlacierEdges.updateRow(originalGlacierEdge)
         
