@@ -83,7 +83,11 @@ def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge):
     measureDate = glacierEdge.getValue(measureDateFieldName)
 
     # Construction of the SQL statement and setup of the search cursor to retrieve all the island edges.
-    sqlStatement = "{0} <> {1} AND {2} = {3} AND {4} = #{5}#".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    # SQL for PGDB
+    #sqlStatement = "{0} <> {1} AND {2} = {3} AND {4} = #{5}#".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+
+    # SQL for FGDB
+    sqlStatement = "{0} <> '{1}' AND {2} = {3} AND {4} = date '{5}'".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
     relatedGlacierEdges = arcpy.SearchCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
     # List of all individual island geometries.
@@ -159,10 +163,13 @@ def setConversionInformation(objDatabaseHelper, dscGlacierEdgeLayer, glacierEdge
     measureDateFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
     measureDate = glacierEdge.getValue(measureDateFieldName)
 
-    sqlStatement = "FK_Glacier = " + str(fkGlacier) + " AND MeasureDate = #" + str(measureDate) + "#"
-    sqlStatement2 = "{0} = {1} AND {2} = #{3}#".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+    # SQL for PGDB
+    #sqlStatement = "{0} = {1} AND {2} = #{3}#".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
 
-    originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement2)
+    # SQL for FGDB
+    sqlStatement = "{0} = {1} AND {2} = date '{3}'".format(fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
+
+    originalGlacierEdges = arcpy.UpdateCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
     fkAreaFieldName = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Area")
 
