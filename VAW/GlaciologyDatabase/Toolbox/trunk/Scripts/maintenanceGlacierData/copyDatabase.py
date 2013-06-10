@@ -40,7 +40,7 @@ def doCopy(sourceDatabase, targetDatabase):
     tableConversions.append(TableConversion(sourceFeatureDataset + os.sep + "Mouth", targetFeatureDataset + os.sep + "Mouth"))
     tableConversions.append(TableConversion(sourceFeatureDataset + os.sep + "Tongue", targetFeatureDataset + os.sep + "Tongue"))
     
-    schemaType = "TEST"
+    schemaType = "NO_TEST"
     fieldMappings = ""
     subtype = ""
     
