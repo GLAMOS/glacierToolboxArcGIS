@@ -5,7 +5,7 @@
 # Created by: Yvo
 # Created on: 08.07.2013
 #
-# Revision:             $Revision: $
+# Revision:             $Revision$
 # Last modification by: $Author: $
 # at:                   $Date: $
 #
