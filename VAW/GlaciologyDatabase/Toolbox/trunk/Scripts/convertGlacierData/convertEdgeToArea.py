@@ -74,6 +74,9 @@ def doConversion(glacierEdgeLayer, glacierAreaLayer):
     del glacierEdges
 
 def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, glacierEdge):
+    
+    arcpy.AddMessage("Start to analyze islands ...")
+    
     arcpy.AddMessage("Datasource: " + dscGlacierEdgeLayer.catalogPath)
     glacierEdgeShapeFieldName = dscGlacierEdgeLayer.ShapeFieldName
 
@@ -91,6 +94,9 @@ def analyseIsland(objDatabaseHelper, dscGlacierEdgeLayer, edgeDataSourceType, gl
         sqlStatement = "{0} <> '{1}' AND {2} = {3} AND {4} = date '{5}'".format(pkFieldName, pk, fkGlacierFieldName, str(fkGlacier), measureDateFieldName, str(measureDate))
     else:
         raise Exception("Datasource '{0}' not handled. No data processing!".format(edgeDataSourceType))
+    
+    arcpy.AddMessage("SQL string to analyze islands: " + sqlStatement)
+    
     # Get the search cursor based on the given where-clause.
     relatedGlacierEdges = arcpy.SearchCursor(dscGlacierEdgeLayer.catalogPath, sqlStatement)
 
@@ -133,13 +139,31 @@ def insertArea(objDatabaseHelper, originalGlacierEdge, glacierAreaLayer, polygon
         fkGlacierFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_ForeignKey_Glacier")
         fkGlacierFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_ForeignKey_Glacier")
         newGlacierArea.setValue(fkGlacierFieldNameArea, originalGlacierEdge.getValue(fkGlacierFieldNameEdge))
+        
         measureDateFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_MeasureDate")
         measureDateFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_MeasureDate")
         newGlacierArea.setValue(measureDateFieldNameArea, originalGlacierEdge.getValue(measureDateFieldNameEdge))
+
         subNameFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "Area_SubName")
         subNameFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "Edge_SubName")
         newGlacierArea.setValue(subNameFieldNameArea, originalGlacierEdge.getValue(subNameFieldNameEdge))
-
+        
+        objectAuthorFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "ForeignKey_ObjectAuthor")
+        objectAuthorFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "ForeignKey_ObjectAuthor")
+        newGlacierArea.setValue(objectAuthorFieldNameArea, originalGlacierEdge.getValue(objectAuthorFieldNameEdge))
+        
+        objectOriginFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "ObjectOrigin")
+        objectOriginFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "ObjectOrigin")
+        newGlacierArea.setValue(objectOriginFieldNameArea, originalGlacierEdge.getValue(objectOriginFieldNameEdge))
+        
+        positionCaptureMethodFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "PositionCaptureMethod")
+        positionCaptureMethodFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "PositionCaptureMethod")
+        newGlacierArea.setValue(positionCaptureMethodFieldNameArea, originalGlacierEdge.getValue(positionCaptureMethodFieldNameEdge))
+        
+        heightCaptureMethodFieldNameArea = objDatabaseHelper.getDatabaseMapping("Glacier", "HeightCaptureMethod")
+        heightCaptureMethodFieldNameEdge = objDatabaseHelper.getDatabaseMapping("Glacier", "HeightCaptureMethod")
+        newGlacierArea.setValue(heightCaptureMethodFieldNameArea, originalGlacierEdge.getValue(heightCaptureMethodFieldNameEdge))
+        
         # Setting the general attributes.
         newGuid = objDatabaseHelper.setImportDetails(newGlacierArea)
         
