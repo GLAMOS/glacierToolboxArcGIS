@@ -29,19 +29,21 @@ def analyzeLines(sourceLayer):
     searchRows = arcpy.SearchCursor(sourceLayer)
 
     for searchRow in searchRows:
-       featureNumber = featureNumber + 1
-       fcVertexList.append([])
-       shapeObj = searchRow.getValue(shapeFieldName)
+        featureNumber = featureNumber + 1
+        fcVertexList.append([])
+        shapeObj = searchRow.getValue(shapeFieldName)
        
-       # Loop for SinglePart
-       #partObj = shapeObj.getPart(0)
-       #for pointObj in partObj:
-       #    fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
+        # Loop for SinglePart
+        #partObj = shapeObj.getPart(0)
+        #for pointObj in partObj:
+        #    fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
        
-       # Loop for MultiPart
-       for partObj in shapeObj:
-          for pointObj in partObj:
-             fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
+        # Loop for MultiPart
+        for partObj in shapeObj:
+            for pointObj in partObj:
+                # Handling only valid geometries.
+                if (pointObj != None):
+                    fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
 
 
     return fcVertexList
