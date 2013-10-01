@@ -29,17 +29,17 @@ def analyzeLines(sourceLayer):
     searchRows = arcpy.SearchCursor(sourceLayer)
 
     for searchRow in searchRows:
-        featureNumber = featureNumber + 1
-        fcVertexList.append([])
         shapeObj = searchRow.getValue(shapeFieldName)
-       
-        # Loop for SinglePart
-        #partObj = shapeObj.getPart(0)
-        #for pointObj in partObj:
-        #    fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
+        
+        arcpy.AddMessage("A new geometry will be analyzed.")
        
         # Loop for MultiPart
         for partObj in shapeObj:
+            
+            arcpy.AddMessage("A new part within the current geometry was found.")
+            featureNumber = featureNumber + 1
+            fcVertexList.append([])
+            
             for pointObj in partObj:
                 # Handling only valid geometries.
                 if (pointObj != None):
