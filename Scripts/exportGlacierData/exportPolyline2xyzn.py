@@ -5,16 +5,16 @@ CODE_LINE_VERTEX = 22
 CODE_LINE_END = 23
 CODE_POINT = 11
 
-def doExport(sourceLayer, targetFile):
+def doExport(sourceLayer, targetFile, altitudeField):
     arcpy.AddMessage("Start to export a line layer to a xyzn ASCII file ...")
     arcpy.AddMessage("Source layer: " + str(sourceLayer))
     arcpy.AddMessage("Target file: " + targetFile)
 
-    analyzedLines = analyzeLines(sourceLayer)
+    analyzedLines = analyzeLines(sourceLayer, altitudeField)
     exportAnalyzedLines(analyzedLines, targetFile)
 
 
-def analyzeLines(sourceLayer):
+def analyzeLines(sourceLayer, altitudeField):
     """
     Analyzes individual polylines and stores the three vertex coordinates in individual arrays.
     """
@@ -25,12 +25,18 @@ def analyzeLines(sourceLayer):
     shapeFieldName = dsc.ShapeFieldName
 
     arcpy.AddMessage("Shape field name: " + shapeFieldName)
+    arcpy.AddMessage("Altitude field name: ->" + altitudeField + "<-")
 
     featureNumber = 0
     searchRows = arcpy.SearchCursor(sourceLayer)
 
     for searchRow in searchRows:
         shapeObj = searchRow.getValue(shapeFieldName)
+        
+        if altitudeField == "":
+            pass
+        else:
+            altitude = searchRow.getValue(altitudeField)
         
         arcpy.AddMessage("A new geometry will be analyzed.")
         
@@ -39,10 +45,11 @@ def analyzeLines(sourceLayer):
             
             featureNumber = featureNumber + 1
             fcVertexList.append([])
-            
-            fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
-            
-            
+                       
+            if altitudeField != "":
+                fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
+            else:
+                fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
             
         elif (shapeObj.type == "polygon" or shapeObj.type == "polyline"):
             # Loop for MultiPart
@@ -55,7 +62,11 @@ def analyzeLines(sourceLayer):
                 for pointObj in partObj:
                     # Handling only valid geometries.
                     if (pointObj != None):
-                        fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
+                        
+                        if  altitudeField == "":
+                            fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
+                        else:
+                            fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, altitude])
         
         else:
             arcpy.AddMessage("The current type of geometry is not handled.")
