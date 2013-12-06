@@ -4,7 +4,6 @@
 # 
 # Created by: yvow
 # Created on: 06.12.2013
-from matplotlib.hatch import VerticalHatch
 
 '''
 Converts polygons into individual polylines. An individual polyline represents an individual part of the input geometry.
@@ -13,7 +12,7 @@ A polylines starts with vertex 0 and ends with vertex 0 again to close to polyli
 '''
 
 # Imports
-import arcpy, os
+import arcpy
 
 def doConversion(sourcePolygonLayer, targetPolylineLayer):
     
