@@ -53,11 +53,14 @@ def analyzeLines(sourceLayer, altitudeField):
             
         elif (shapeObj.type == "polygon" or shapeObj.type == "polyline"):
             # Loop for MultiPart
+            
+            arcpy.AddMessage("A new geometry was found.")
+            featureNumber = featureNumber + 1
+            fcVertexList.append([])
+  
             for partObj in shapeObj:
                 
                 arcpy.AddMessage("A new part within the current geometry was found.")
-                featureNumber = featureNumber + 1
-                fcVertexList.append([])
                 
                 for pointObj in partObj:
                     # Handling only valid geometries.
