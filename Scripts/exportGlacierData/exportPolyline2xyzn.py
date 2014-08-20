@@ -5,16 +5,16 @@ CODE_LINE_VERTEX = 22
 CODE_LINE_END = 23
 CODE_POINT = 11
 
-def doExport(sourceLayer, targetFile, altitudeField):
+def doExport(sourceLayer, targetFile, altitudeField, pointIdField):
     arcpy.AddMessage("Start to export a line layer to a xyzn ASCII file ...")
     arcpy.AddMessage("Source layer: " + str(sourceLayer))
     arcpy.AddMessage("Target file: " + targetFile)
 
-    analyzedLines = analyzeLines(sourceLayer, altitudeField)
+    analyzedLines = analyzeLines(sourceLayer, altitudeField, pointIdField)
     exportAnalyzedLines(analyzedLines, targetFile)
 
 
-def analyzeLines(sourceLayer, altitudeField):
+def analyzeLines(sourceLayer, altitudeField, pointIdField):
     """
     Analyzes individual polylines and stores the three vertex coordinates in individual arrays.
     """
@@ -43,13 +43,25 @@ def analyzeLines(sourceLayer, altitudeField):
         if shapeObj.type == "point":
             arcpy.AddMessage("A new point geometry was found.")
             
+            if pointIdField == "":
+                pass
+            else:
+                pointId = searchRow.getValue(pointIdField)
+            
             featureNumber = featureNumber + 1
             fcVertexList.append([])
                        
             if altitudeField != "":
-                fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
+                if pointIdField != "":
+                    fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
+                else:
+                    fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
             else:
-                fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
+                if pointIdField != "":
+                    fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
+                else:
+                    fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
+                
             
         elif (shapeObj.type == "polygon" or shapeObj.type == "polyline"):
             # Loop for MultiPart
@@ -104,8 +116,14 @@ def exportAnalyzedLines(analyzedLines, targetFile):
                     elif i == numberVertex - 1:
                         codeVertex = CODE_LINE_END
 
-                lineToWrite = str(analyzedLine[i][0]) + " " + str(analyzedLine[i][1]) + " " + str(analyzedLine[i][2]) + " " + str(codeVertex)
+                lineToWrite = ""
+                j = 0
+                while j < len(analyzedLine[i]):
+                    lineToWrite = lineToWrite + str(analyzedLine[i][j]) + " "
+                    j = j + 1
                 
+                lineToWrite = lineToWrite + str(codeVertex)
+                    
                 arcpy.AddMessage("Vertex found: " + lineToWrite)
                 exportFile.write(lineToWrite + "\n")
 
