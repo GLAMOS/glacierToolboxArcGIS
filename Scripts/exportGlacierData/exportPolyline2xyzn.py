@@ -5,6 +5,8 @@ CODE_LINE_VERTEX = 22
 CODE_LINE_END = 23
 CODE_POINT = 11
 
+CODE_NaN = "NaN"
+
 def doExport(sourceLayer, targetFile, altitudeField, pointIdField):
     arcpy.AddMessage("Start to export a line layer to a xyzn ASCII file ...")
     arcpy.AddMessage("Source layer: " + str(sourceLayer))
@@ -18,76 +20,92 @@ def analyzeLines(sourceLayer, altitudeField, pointIdField):
     """
     Analyzes individual polylines and stores the three vertex coordinates in individual arrays.
     """
+    
+    try:
 
-    fcVertexList = []
+        fcVertexList = []
 
-    dsc = arcpy.Describe(sourceLayer)
-    shapeFieldName = dsc.ShapeFieldName
+        dsc = arcpy.Describe(sourceLayer)
+        shapeFieldName = dsc.ShapeFieldName
 
-    arcpy.AddMessage("Shape field name: " + shapeFieldName)
-    arcpy.AddMessage("Altitude field name: ->" + altitudeField + "<-")
+        arcpy.AddMessage("Shape field name: " + shapeFieldName)
+        arcpy.AddMessage("Altitude field name: ->" + altitudeField + "<-")
 
-    featureNumber = 0
-    searchRows = arcpy.SearchCursor(sourceLayer)
+        featureNumber = 0
+        searchRows = arcpy.SearchCursor(sourceLayer)
 
-    for searchRow in searchRows:
-        shapeObj = searchRow.getValue(shapeFieldName)
-        
-        if altitudeField == "":
-            pass
-        else:
-            altitude = searchRow.getValue(altitudeField)
-        
-        arcpy.AddMessage("A new geometry will be analyzed.")
-        
-        if shapeObj.type == "point":
-            arcpy.AddMessage("A new point geometry was found.")
+        for searchRow in searchRows:
+            shapeObj = searchRow.getValue(shapeFieldName)
             
-            if pointIdField == "":
+            if altitudeField == "":
                 pass
             else:
-                pointId = searchRow.getValue(pointIdField)
+                altitude = searchRow.getValue(altitudeField)
             
-            featureNumber = featureNumber + 1
-            fcVertexList.append([])
-                       
-            if altitudeField != "":
-                if pointIdField != "":
-                    fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
+            arcpy.AddMessage("A new geometry will be analyzed.")
+            
+            if shapeObj.type == "point":
+                arcpy.AddMessage("A new point geometry was found.")
+                
+                if pointIdField == "":
+                    pass
                 else:
-                    fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
-            else:
-                if pointIdField != "":
-                    fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
+                    pointId = searchRow.getValue(pointIdField)
+                
+                featureNumber = featureNumber + 1
+                fcVertexList.append([])
+                           
+                if altitudeField != "":
+                    if pointIdField != "":
+                        fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
+                    else:
+                        fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, altitude])
                 else:
-                    fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, shapeObj.getPart().Z])
                 
-            
-        elif (shapeObj.type == "polygon" or shapeObj.type == "polyline"):
-            # Loop for MultiPart
-            
-            arcpy.AddMessage("A new geometry was found.")
-            featureNumber = featureNumber + 1
-            fcVertexList.append([])
-  
-            for partObj in shapeObj:
+                    # Replacing the Python None with the Wave NaN for better processing internaly at VAW.
+                    zValue = CODE_NaN
+                    if shapeObj.getPart().Z != None:
+                        zValue = shapeObj.getPart().Z
+                    
+                    if pointIdField != "":
+                        fcVertexList[featureNumber - 1].append([pointId, shapeObj.getPart().X, shapeObj.getPart().Y, zValue])
+                    else:
+                        fcVertexList[featureNumber - 1].append([shapeObj.getPart().X, shapeObj.getPart().Y, zValue])
+                    
                 
-                arcpy.AddMessage("A new part within the current geometry was found.")
+            elif (shapeObj.type == "polygon" or shapeObj.type == "polyline"):
+                # Loop for MultiPart
                 
-                for pointObj in partObj:
-                    # Handling only valid geometries.
-                    if (pointObj != None):
+                arcpy.AddMessage("A new geometry was found.")
+                featureNumber = featureNumber + 1
+                fcVertexList.append([])
+      
+                for partObj in shapeObj:
+                    
+                    arcpy.AddMessage("A new part within the current geometry was found.")
+                    
+                    for pointObj in partObj:
+                        # Handling only valid geometries.
+                        if (pointObj != None):
                         
-                        if  altitudeField == "":
-                            fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, pointObj.Z])
-                        else:
-                            fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, altitude])
+                            # Replacing the Python None with the Wave NaN for better processing internaly at VAW.
+                            zValue = CODE_NaN
+                            if pointObj.Z != None:
+                                zValue = pointObj.Z
+                            
+                            if  altitudeField == "":
+                                fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, zValue])
+                            else:
+                                fcVertexList[featureNumber - 1].append([pointObj.X, pointObj.Y, altitude])
+            
+            else:
+                arcpy.AddMessage("The current type of geometry is not handled.")
+
+
+        return fcVertexList
         
-        else:
-            arcpy.AddMessage("The current type of geometry is not handled.")
-
-
-    return fcVertexList
+    except:
+        arcpy.AddMessage("ERROR")
 
 def exportAnalyzedLines(analyzedLines, targetFile):
 
